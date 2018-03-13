@@ -11,9 +11,10 @@ from matplotlib import colors
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter, MultipleLocator 
 from matplotlib.patches import Rectangle
 
-
 __author__ = "Yasmine Chebaro"
 __email__ = "yasmine.chebaro@gmail.com"
+
+# This is a preliminary version, need to make it cleaner and prettier...
 
 """ Plot some data with visualization of secondary structure """
 """ uses dssp to get info on secondary structure             """
@@ -41,14 +42,9 @@ def getsecstr(pdbfile,chainid):
     # get dssp output
     os.system("dssp %s > dssp.out" %(pdbfile))
     
-    # create lists for sec str elements
-    H = []
-    B = []
-    E = []
-    G = []
-    I = []
-    T = []
-    S = []
+    # create dict for sec str elements and list of resids for each
+    SecStruc = dict()
+    H, B, E, G, I, T, S = ([] for i in range(7))
     
     # extract secondary structure info for the required chain
     with open("dssp.out") as myFile:
@@ -70,14 +66,22 @@ def getsecstr(pdbfile,chainid):
                 if line[16:18] == "S ":
                     S.append(int(line[0:5]))
                     
-    return H,B,E,G,I,T,S
+    SecStruc['H'] = H
+    SecStruc['B'] = B
+    SecStruc['E'] = E
+    SecStruc['G'] = G
+    SecStruc['I'] = I
+    SecStruc['T'] = T
+    SecStruc['S'] = S
+    
+    return SecStruc
 
 def consecutive(data, stepsize=1):
     """ split array or list into arrays of consecutive numbers """
     return np.split(data,np.where(np.diff(data) != stepsize)[0]+1)
       
         
-def plotdatawithss(inputfile,listofss,H,B,E,G,I,T,S):
+def plotdatawithss(inputfile,listofss,SecStruc):
     fig = plt.figure(1, figsize=(10,4))
     ax1 = fig.add_subplot(111)
     
@@ -92,35 +96,36 @@ def plotdatawithss(inputfile,listofss,H,B,E,G,I,T,S):
     # add rectangles for the secondary elements selected
     yss = 0.8*min(y)
     rwidth = 0.1*min(y)
-        
+    mylistss = list(listofss)
+    
     for ss in listofss:
-        if ss == "H":
-            for elm in consecutive(H):
+        if 'H' in SecStruc.keys() and SecStruc['H'] != []:
+            for elm in consecutive(SecStruc['H']):
                 ax1.add_patch(Rectangle((elm[0],yss),len(elm),rwidth,color='firebrick'))
-        if ss == "B":
-            for elm in consecutive(B):
+        if 'B' in SecStruc.keys() and SecStruc['B'] != []:
+            for elm in consecutive(SecStruc['B']):
                 ax1.add_patch(Rectangle((elm[0],yss),len(elm),rwidth,color='mediumspringgreen'))
-        if ss == "E":
-            for elm in consecutive(E):
+        if 'E' in SecStruc.keys() and SecStruc['E'] != []:
+            for elm in consecutive(SecStruc['E']):
                 ax1.add_patch(Rectangle((elm[0],yss),len(elm),rwidth,color='forestgreen'))
-        if ss == "G":
-            for elm in consecutive(G):
+        if 'G' in SecStruc.keys() and SecStruc['G'] != []:
+            for elm in consecutive(SecStruc['G']):
                 ax1.add_patch(Rectangle((elm[0],yss),len(elm),rwidth,color='darkviolet'))
-        if ss == "I":
-            for elm in consecutive(I):
+        if 'I' in SecStruc.keys() and SecStruc['I'] != []:
+            for elm in consecutive(SecStruc['I']):
                 ax1.add_patch(Rectangle((elm[0],yss),len(elm),rwidth,color='deeppink'))
-        if ss == "T":
-            for elm in consecutive(T):
+        if 'T' in SecStruc.keys() and SecStruc['T'] != []:
+            for elm in consecutive(SecStruc['T']):
                 ax1.add_patch(Rectangle((elm[0],yss),len(elm),rwidth,color='deepskyblue'))
-        if ss == "S":
-            for elm in consecutive(S):
+        if 'S' in SecStruc.keys() and SecStruc['S'] != []:
+            for elm in consecutive(SecStruc['S']):
                 ax1.add_patch(Rectangle((elm[0],yss),len(elm),rwidth,color='dodgerblue'))
 
     plt.show()
     
 
 def parse_options():
-    parser = argparse.ArgumentParser(description='Plot secondary structure elements as rectangles in a figure, runs dssp to get info. Argument -s (--sel) consists of a list of secondary structure elements chosen to be represented (H,B,E,G,I,T or S), format is ["E","G"] for example.')
+    parser = argparse.ArgumentParser(description='Plot secondary structure elements as rectangles in a figure, runs dssp to get info. Argument -s (--sel) consists of a list of secondary structure elements chosen to be represented (H,B,E,G,I,T or S), format is E,G for example, default is all.')
     parser.add_argument("-f","--file", dest="datafile", required=True,
                         action='store', type=str,
                         help='data file, in (x,y) format')
@@ -130,9 +135,9 @@ def parse_options():
     parser.add_argument("-c","--chain", dest='chainid', required=True,
                         action='store', type=str,
                         help='chain id for secondary structure representation')
-    parser.add_argument("-s","--sel", dest='selss', required=True,
+    parser.add_argument("-s","--sel", dest='selss',
                         action='store', type=str,
-                        help='selection of secondary structure elements chosen for representation')
+                        help='selection of secondary structure elements chosen for representation, default is all')
     
     return parser.parse_args()
     
@@ -143,9 +148,14 @@ def main():
     pdb       = options.pdbfile
     chain     = options.chainid
     selection = options.selss
-    
-    H,B,E,G,I,T,S = getsecstr(pdb, chain)
-    plotdatawithss(data,selection,H,B,E,G,I,T,S)
+
+    SecStruc = getsecstr(pdb, chain)
+    if selection == None:
+        selection = ['H','B','E','G','I','T','S']
+        plotdatawithss(data,selection,SecStruc)
+    else:
+        plotdatawithss(data,selection,SecStruc)
+
     
     
 if __name__ == "__main__":
